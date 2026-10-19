@@ -1,0 +1,21 @@
+# Archivos generados en tiempo de ejecución (no son código fuente)
+vulnerable.db
+reporte_auditoria.html
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Entornos / secretos
+.env
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
