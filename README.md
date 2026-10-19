@@ -25,6 +25,18 @@ pip install flask requests
 
 ## Cómo Ejecutar
 
+### Opción A: GitHub Codespaces (sin instalar nada local)
+
+1. En GitHub, botón verde **Code** → pestaña **Codespaces** → **Create codespace on main**
+2. Espera a que termine `postCreateCommand` (instala Flask y requests automáticamente)
+3. Terminal 1: `python vulnerable_app.py`
+4. Terminal 2: `python web_audit_scanner.py`
+5. Cuando aparezca la notificación de puerto forwardeado (5000 y luego 8090), haz click en **Open in Browser**. Si no aparece, abre la pestaña **Ports** en VS Code y haz click en el ícono del globo junto al puerto correspondiente.
+
+> Nota: por defecto los puertos forwardeados en Codespaces son privados a tu cuenta de GitHub (necesitas estar logueado para verlos); no hace falta hacerlos públicos para esta demo.
+
+### Opción B: Local
+
 ### Paso 1: Iniciar la Aplicación Vulnerable
 
 ```bash

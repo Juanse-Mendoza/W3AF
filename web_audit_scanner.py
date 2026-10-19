@@ -8,10 +8,17 @@ import requests
 import re
 import os
 import webbrowser
+import http.server
+import socketserver
+import functools
 from urllib.parse import urljoin, urlparse
 import sys
 from typing import List, Dict
 from datetime import datetime
+
+# Puerto por defecto donde se sirve el reporte HTML (se prueban los siguientes
+# 10 puertos si este está ocupado)
+REPORT_PORT = 8090
 
 # Remediación recomendada por tipo de vulnerabilidad (se usa en el reporte HTML)
 REMEDIACIONES = {
@@ -311,7 +318,8 @@ class WebAuditScanner:
         self.log("FIN DEL ESCANEO", "REPORT")
         self.log("="*70)
 
-    def generate_html_report(self, output_file: str = "reporte_auditoria.html", auto_open: bool = True):
+    def generate_html_report(self, output_file: str = "reporte_auditoria.html", auto_open: bool = True,
+                              port: int = REPORT_PORT):
         """Genera un reporte visual en HTML con lo que hizo el scanner y cómo lo hizo"""
         total_vulns = len(self.vulnerabilities)
         counts = {
@@ -443,10 +451,63 @@ class WebAuditScanner:
         self.log(f"\nReporte HTML generado en: {output_path}", "REPORT")
 
         if auto_open:
+            self._serve_html_report(output_path, port=port)
+
+    def _serve_html_report(self, output_path: str, port: int = REPORT_PORT):
+        """Levanta un servidor HTTP local y abre el reporte en el navegador por ese puerto.
+
+        Se prueban hasta 10 puertos a partir de `port` por si el primero está ocupado.
+        El servidor queda corriendo hasta que se presione Ctrl+C.
+        """
+        directory = os.path.dirname(output_path) or '.'
+        filename = os.path.basename(output_path)
+        handler_class = functools.partial(http.server.SimpleHTTPRequestHandler, directory=directory)
+
+        httpd = None
+        used_port = None
+        for candidate_port in range(port, port + 10):
             try:
-                webbrowser.open(f"file://{output_path}")
+                # 0.0.0.0 para que Codespaces/Docker puedan exponer el puerto;
+                # sigue siendo accesible por 127.0.0.1 en tu máquina local.
+                httpd = socketserver.TCPServer(("0.0.0.0", candidate_port), handler_class)
+                used_port = candidate_port
+                break
+            except OSError:
+                continue  # puerto ocupado, probar el siguiente
+
+        if httpd is None:
+            self.log(f"No se pudo abrir ningún puerto libre entre {port} y {port + 9} para el reporte", "WARNING")
+            return
+
+        # Si corre dentro de un GitHub Codespace, armamos la URL pública que
+        # GitHub expone para ese puerto en vez de localhost
+        codespace_name = os.environ.get('CODESPACE_NAME')
+        forwarding_domain = os.environ.get('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN', 'app.github.dev')
+
+        if codespace_name:
+            url = f"https://{codespace_name}-{used_port}.{forwarding_domain}/{filename}"
+            self.log(f"Reporte disponible en: {url}", "REPORT")
+            self.log("(Ejecutando en GitHub Codespaces: abre la pestaña 'Ports' y marca el", "REPORT")
+            self.log(f" puerto {used_port} como público, o haz click en el link del tab 'Ports')", "REPORT")
+        else:
+            url = f"http://127.0.0.1:{used_port}/{filename}"
+            self.log(f"Reporte disponible en: {url}", "REPORT")
+
+        self.log("Presiona Ctrl+C en esta terminal para detener el servidor del reporte.", "REPORT")
+
+        if not codespace_name:
+            # En un contenedor remoto como Codespaces no hay navegador local que abrir
+            try:
+                webbrowser.open(url)
             except Exception:
                 pass
+
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            self.log("\nDeteniendo servidor del reporte...", "INFO")
+        finally:
+            httpd.server_close()
 
     @staticmethod
     def _escape(text) -> str:

@@ -187,15 +187,27 @@ def remove_headers(response):
     return response
 
 if __name__ == '__main__':
+    # Si corre dentro de un GitHub Codespace, GitHub expone cada puerto en una
+    # URL pública tipo https://<codespace>-<puerto>.app.github.dev
+    codespace_name = os.environ.get('CODESPACE_NAME')
+    forwarding_domain = os.environ.get('GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN', 'app.github.dev')
+    base_url = f"https://{codespace_name}-5000.{forwarding_domain}" if codespace_name else "http://127.0.0.1:5000"
+
     print("="*60)
     print("APLICACIÓN WEB VULNERABLE - PARA DEMOSTRACIÓN EDUCATIVA")
     print("="*60)
-    print("\nIniciando en http://127.0.0.1:5000/")
+    print(f"\nIniciando en {base_url}/")
+    if codespace_name:
+        print("(Ejecutando en GitHub Codespaces: si el puerto 5000 aparece como")
+        print(" privado en la pestaña 'Ports', cámbialo a 'Public' o 'Private' con")
+        print(" tu sesión de GitHub para poder abrirlo en el navegador)")
     print("\nVulnerabilidades demostrables:")
-    print("  1. SQL Injection: http://127.0.0.1:5000/search")
-    print("  2. XSS: http://127.0.0.1:5000/comment")
-    print("  3. Information Disclosure: http://127.0.0.1:5000/debug")
-    print("  4. Weak Authentication: http://127.0.0.1:5000/login")
+    print(f"  1. SQL Injection: {base_url}/search")
+    print(f"  2. XSS: {base_url}/comment")
+    print(f"  3. Information Disclosure: {base_url}/debug")
+    print(f"  4. Weak Authentication: {base_url}/login")
     print("\n" + "="*60 + "\n")
 
-    app.run(debug=False, port=5000)
+    # host='0.0.0.0' es necesario para que Codespaces/Docker puedan exponer el
+    # puerto; en tu máquina local sigue siendo accesible por 127.0.0.1 igual.
+    app.run(debug=False, host='0.0.0.0', port=5000)
